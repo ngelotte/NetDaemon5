@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NetDaemon.Common;
 using System.Linq;
 using System.Collections.Generic;
+using Netdaemon.Generated.Reactive;
 
 // Use unique namespaces for your apps if you going to share with others to avoid
 // conflicting names
@@ -58,7 +59,15 @@ namespace Greenhouse
             return true;
         }
 
-
+        public async Task<bool> SendAlert(string title, string descriptions)
+        {
+            _app.CallService("persistent_notification", "create", new
+            {
+                title = title,
+                message = descriptions
+            });
+            return true;
+        }
         private TimeSpan ConvertStepsToTime(int steps, int safetyBuffer = 3)
         {
             //Stepper is set at 250 steps per second
@@ -287,11 +296,32 @@ namespace Greenhouse
             //Just in case
             return timing;
         }
+        public async Task<bool> RefillAllReserviors(List<string> selectorNames)
+        {
+            InputSelectEntities ise = new InputSelectEntities(_app);
+            if (ise.ReservoirRes.State == "None")
+            {
+                foreach (var sn in selectorNames)
+                {
+                    ise.ReservoirRes.SetOptions(sn);
+
+                }
+            }
+            else
+            {
+                await SendAlert("Cannot start Reservoir refil.", $"ReservoirRes state is currently {ise.ReservoirRes.State}");
+            }
+
+            return true;
+
+        }
+
         public async Task<bool> RefillCurrentReservior()
         {
             GhZone currentZone = _ghConfig.CurrentZone();
             if (currentZone.LowWater == null)
             {
+                await SendAlert($"Error Refilling Reservior {currentZone.SelectorName}", "Low water is null");
                 return false;
             }
             return await RefillReservior(currentZone);
@@ -317,8 +347,19 @@ namespace Greenhouse
                 zone.SecondsFromLowToMediumOnTestingZone > 0
                 )
                 {
+                    if (zone.HighWater.IsOn() && zone.MediumWater.IsOff())
+                    {
+                        await SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the highwater on but the medium water is off.");
+                        throw new Exception("Reservoir in an invalid state");
+                    }
+                    if (zone.LowWater.IsOff() && (zone.MediumWater.IsOn() || zone.HighWater.IsOn()))
+                    {
+                        await SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the lowWater off but the medium water isOn is {zone.HighWater.IsOn()} and high water isOn is  {zone.HighWater.IsOn()}.");
+                        throw new Exception("Reservoir in an invalid state");
+                    }
+
                     _app.LogInformation($"Starting refill of zone {zone.SelectorName}");
-                    if (zone.HighWater.IsOff())
+                    if (zone.HighWater.IsOff() && refillSucessful)
                     {
                         if (zone.MediumWater.IsOff())
                         {
@@ -402,12 +443,14 @@ namespace Greenhouse
             }
             catch (Exception ex)
             {
+
                 if (zone.TestingPump != null)
                 {
                     zone.TestingPump.TurnOff();
                 }
 
-                _app.LogInformation($"Refill had an exception of {ex.Message}");
+                _app.LogError($"Refill had an exception of {ex.Message}");
+                await SendAlert($"Error refilling Reserviour {zone.SelectorName}", $"Refill had an exception of { ex.Message}");
                 tcs.SetResult(true);
             }
 

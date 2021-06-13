@@ -19,51 +19,24 @@ namespace Greenhouse
     {
         public GhZone? CurrentZone { get; set; }
         public GHMain? GHMain { get; set; }
+        public List<string> ActiveReservoirs { get; set; } = new();
 
         public override async ValueTask DisposeAsync()
         {
             GhProcedures gh = new GhProcedures(this);
             gh.MakeSureEverythingisOff();
+            LogInformation("Made sure everythign is off");
 
         }
         public override void Initialize()
         {
 
             LogInformation("Refill started and is ready for a callback");
-            // SwitchEntities sw = new SwitchEntities(this);
-            // sw.PowerStrip1Outlet3
-            // .StateChanges
-            // .Where(e => e.New?.State == "on")
-            // .Subscribe(async t =>
-            // {
-            //     this.LogDebug($"PowerStrip1Outlet3 was turned on");
-                //     LogInformation("Starting Run");
-                //     //GhProcedures gh = new GhProcedures(this);
-                //     //bool result = await gh.RefillReservior(6);
-
-                //     //double average = await gh.CreateAverage(2, true);
-                //     //this.LogDebug($"The average time is {average}");
-                //     //gh.TimeMainWaterPump();
-
-                //     // var currentRun = sw.St1p2.StateChanges.Where(t => t.New.State == "on").FirstOrTimeout(TimeSpan.FromSeconds(5))
-                //     // .Subscribe(t =>
-                //     // {
-                //     //     sw.St1p3.TurnOn();
-                //     //     if (t.Item1.State == "TimeOut")
-                //     //     {
-                //     //         LogDebug("Time Out Happened - But still turning on the Test Switch");
-                //     //     }
-                //     //     else
-                //     //     {
-                //     //         LogDebug("Turned the test switch on");
-                //     //     }
-
-                //     // });
-
-
-
-            // }
-            //         );
+            RunDaily("6:00", async () =>
+            {
+                GhProcedures gh = new GhProcedures(this);
+                await gh.RefillAllReserviors(ActiveReservoirs);
+            });
         }
         [HomeAssistantServiceCall]
         public async Task RefillCurrentZone(dynamic data)
