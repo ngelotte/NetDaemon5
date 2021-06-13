@@ -1,0 +1,2 @@
+netdaemon_app:
+  class: Greenhouse.Refill

@@ -1,0 +1,4 @@
+dehumidifier_app:
+  class: Greenhouse.DeHumidifierApp
+  humiditySensor: "sensor.greenhouse_internal_humidity"
+  humidifier: "switch.tb4p2"

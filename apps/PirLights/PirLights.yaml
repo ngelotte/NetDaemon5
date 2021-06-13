@@ -1,0 +1,9 @@
+pirlights_app:
+  class: Greenhouse.PirLights
+  sun_elevation: 5.0
+  leave_lights_on_for_seconds: 600
+  lights: 
+    - switch.gh_front_light_switch
+    - switch.gh_back_light
+  pirSensors:
+    - binary_sensor.espcam01_pir

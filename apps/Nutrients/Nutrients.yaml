@@ -1,0 +1,2 @@
+nutrients_app:
+  class: Greenhouse.Nutrients
