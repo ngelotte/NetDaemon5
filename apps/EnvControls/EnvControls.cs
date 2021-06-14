@@ -61,7 +61,7 @@ namespace Greenhouse
                         _ghMain.SwampCooler.TurnOff();
                     }
                 }
-                if (_ghMain.InternalHumidity > HumidityOn && _ghMain.Dehumidfier.IsOn())
+                if (_ghMain.InternalHumidity > HumidityOn && _ghMain.Dehumidfier.IsOff())
                 {
 
                     LogInformation($"Humidity is {_ghMain.InternalHumidity} -  Turning on the dehumidifier");
@@ -69,7 +69,7 @@ namespace Greenhouse
 
 
                 }
-                if (_ghMain.InternalHumidity < HumidityOff && _ghMain.Dehumidfier.IsOff())
+                if (_ghMain.InternalHumidity < HumidityOff && _ghMain.Dehumidfier.IsOn())
                 {
                     LogInformation($"Humidity is {_ghMain.InternalHumidity} -  Turning off the dehumidifier");
                     _ghMain.SwampCooler.TurnOff();

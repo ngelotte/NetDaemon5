@@ -59,12 +59,17 @@ namespace Greenhouse
             return true;
         }
 
-        public async Task<bool> SendAlert(string title, string descriptions)
+        public async Task<bool> SendAlert(string title, string description)
         {
             _app.CallService("persistent_notification", "create", new
             {
                 title = title,
-                message = descriptions
+                message = description
+            });
+            _app.CallService("notify", "mobile_app_moto_g_stylus", new
+            {
+                title = title,
+                message = description
             });
             return true;
         }
@@ -303,8 +308,10 @@ namespace Greenhouse
             {
                 foreach (var sn in selectorNames)
                 {
-                    ise.ReservoirRes.SetOptions(sn);
-
+                    ise.ReservoirRes.CallService("select_option", sn, true);
+                    await Task.Delay(3000);
+                    await RefillCurrentReservior();
+                    ise.ReservoirRes.SelectOption("None");
                 }
             }
             else
@@ -359,7 +366,7 @@ namespace Greenhouse
                     }
 
                     _app.LogInformation($"Starting refill of zone {zone.SelectorName}");
-                    if (zone.HighWater.IsOff() && refillSucessful)
+                    if (zone.HighWater.IsOff())
                     {
                         if (zone.MediumWater.IsOff())
                         {
@@ -410,7 +417,7 @@ namespace Greenhouse
                                         secondsToRun = secondsToRun * (_ghMain.SecondsFromLowToMediumOnTestingZone / zone.SecondsFromLowToMediumOnTestingZone);
                                         if (_ghMain.TestingZoneHigh.IsOn())
                                         {
-                                            _app.LogInformation("The testing reserviour filled up before we reached the medium water mark on the current zone. It must be pretty full");
+                                            _app.LogInformation("The testing Reservoir filled up before we reached the medium water mark on the current zone. It must be pretty full");
                                             refillSucessful = true;
                                             tcs.SetResult(true);
                                         }

@@ -17,9 +17,9 @@ namespace Greenhouse
     /// </summary>
     public class Refill : NetDaemonRxApp
     {
-        public GhZone? CurrentZone { get; set; }
-        public GHMain? GHMain { get; set; }
-        public List<string> ActiveReservoirs { get; set; } = new();
+
+        public IEnumerable<string>? ActiveReservoirs { get; set; }
+
 
         public override async ValueTask DisposeAsync()
         {
@@ -30,12 +30,12 @@ namespace Greenhouse
         }
         public override void Initialize()
         {
-
+            GhProcedures gh = new GhProcedures(this);
             LogInformation("Refill started and is ready for a callback");
-            RunDaily("6:00", async () =>
+            RunIn(TimeSpan.FromSeconds(20), async () =>
             {
-                GhProcedures gh = new GhProcedures(this);
-                await gh.RefillAllReserviors(ActiveReservoirs);
+
+                await gh.RefillAllReserviors(ActiveReservoirs.ToList());
             });
         }
         [HomeAssistantServiceCall]

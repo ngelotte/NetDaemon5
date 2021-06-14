@@ -6,6 +6,7 @@ using NetDaemon.Common;
 using System.Threading.Tasks;
 using NetDaemon.Common.Reactive.Services;
 using System.Collections.Generic;
+using Netdaemon.Generated.Reactive;
 
 // Use unique namespaces for your apps if you going to share with others to avoid
 // conflicting names
@@ -23,6 +24,7 @@ namespace Greenhouse
         {
             return (bse?.State ?? "Unknown") == "off";
         }
+
         public static bool IsUnknown(this BinarySensorEntity bse)
         {
             return bse.State == null;

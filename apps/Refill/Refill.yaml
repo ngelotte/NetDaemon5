@@ -1,6 +1,6 @@
-netdaemon_app:
+refill_app:
   class: Greenhouse.Refill
-  active_reservoirs:
+  ActiveReservoirs:
     - DB1
     - DB2
     - DB3
