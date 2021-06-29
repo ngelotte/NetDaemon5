@@ -2,7 +2,7 @@ using System;
 using System.Reactive.Linq;
 using NetDaemon.Common.Reactive;
 using System.Collections.Generic;
-using Netdaemon.Generated.Reactive;
+using NetDaemon.Generated.Reactive;
 
 namespace Greenhouse
 {

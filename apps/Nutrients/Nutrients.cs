@@ -1,7 +1,7 @@
 using System;
 using System.Reactive.Linq;
 using NetDaemon.Common.Reactive;
-using Netdaemon.Generated.Reactive;
+using NetDaemon.Generated.Reactive;
 using System.Threading.Tasks;
 using NetDaemon.Common;
 using System.Collections.Generic;
@@ -11,13 +11,25 @@ namespace Greenhouse
 {
     public class Nutrients : NetDaemonRxApp
     {
-
+        private bool HoldCurrentZoneIsRunning { get; set; } = false;
 
         public override void Initialize()
         {
             GhProcedures gh = new GhProcedures(this);
             LogInformation("Nutrients is Starting");
+            InputBooleanEntities ibe = new(this);
+            ibe.TestingTankHold.StateChanges.Where(t => t.New.State == "on").Subscribe(async e =>
+            {
+                if (HoldCurrentZoneIsRunning == false)
+                {
+                    HoldCurrentZoneIsRunning = true;
+                    bool completedSuccesfully = await gh.HoldCurrentZone();
+                    LogInformation($"Hold currentZone completed with the completedSuccesfully set to {completedSuccesfully}");
+                    HoldCurrentZoneIsRunning = false;
+                }
+            });
         }
+
 
         [HomeAssistantServiceCall]
         public async Task<bool> AddOneDoseToCurrentZone(dynamic data)

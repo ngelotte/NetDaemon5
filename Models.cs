@@ -1,7 +1,8 @@
 
-using Netdaemon.Generated.Reactive;
+
 using NetDaemon.Common.Reactive;
 using NetDaemon.Common.Reactive.Services;
+using NetDaemon.Generated.Reactive;
 using System.Collections.Generic;
 
 namespace Greenhouse
@@ -117,7 +118,7 @@ namespace Greenhouse
             int pump1 = 0;
             int pump2 = 0;
             int pump3 = 0;
-            int baseStepCount = 250;
+            int baseStepCount = 300;
             switch (NutrientMix)
             {
                 case NutrientMixes.CuttingsAndSeedlings:
@@ -216,7 +217,7 @@ namespace Greenhouse
                 CurrentZone.TestingPump = sw.St2p1;
                 CurrentZone.SecondsFromLowToMediumOnTestingZone = 10.57M;
                 CurrentZone.SecondsFromHighToMediumOnBucket = 31.88M; ///Copied from Zone 2
-                CurrentZone.NutrientMix = NutrientMixes.AggressiveVegetativeGrowth;
+                CurrentZone.NutrientMix = NutrientMixes.BloomingAndRipening;
                 return CurrentZone;
             }
             if (ise.ReservoirRes.State == "DB2")
@@ -242,7 +243,7 @@ namespace Greenhouse
                 CurrentZone.TestingPump = sw.St3p4;
                 CurrentZone.SecondsFromLowToMediumOnTestingZone = 10.477M;
                 CurrentZone.SecondsFromHighToMediumOnBucket = 44.66M;
-                CurrentZone.NutrientMix = NutrientMixes.AggressiveVegetativeGrowth;
+                CurrentZone.NutrientMix = NutrientMixes.BloomingAndRipening;
                 return CurrentZone;
             }
             if (ise.ReservoirRes.State == "DB4")
@@ -255,7 +256,7 @@ namespace Greenhouse
                 CurrentZone.TestingPump = sw.St3p3;
                 CurrentZone.SecondsFromLowToMediumOnTestingZone = 10.896M;
                 CurrentZone.SecondsFromHighToMediumOnBucket = 41.53M;
-                CurrentZone.NutrientMix = NutrientMixes.AggressiveVegetativeGrowth;
+                CurrentZone.NutrientMix = NutrientMixes.BloomingAndRipening;
                 return CurrentZone;
             }
             if (ise.ReservoirRes.State == "DB5")
@@ -268,7 +269,7 @@ namespace Greenhouse
                 CurrentZone.TestingPump = sw.St1p2;
                 CurrentZone.SecondsFromLowToMediumOnTestingZone = 11.08M;
                 CurrentZone.SecondsFromHighToMediumOnBucket = 45.45M;
-                CurrentZone.NutrientMix = NutrientMixes.AggressiveVegetativeGrowth;
+                CurrentZone.NutrientMix = NutrientMixes.BloomingAndRipening;
                 return CurrentZone;
             }
             if (ise.ReservoirRes.State == "DB6")
@@ -281,7 +282,7 @@ namespace Greenhouse
                 CurrentZone.TestingPump = sw.St1p4;
                 CurrentZone.SecondsFromHighToMediumOnBucket = 51.656M;
                 CurrentZone.SecondsFromLowToMediumOnTestingZone = 12.465M;
-                CurrentZone.NutrientMix = NutrientMixes.AggressiveVegetativeGrowth;
+                CurrentZone.NutrientMix = NutrientMixes.BloomingAndRipening;
                 return CurrentZone;
             }
             if (ise.ReservoirRes.State == "NFT")

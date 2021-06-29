@@ -2,5 +2,5 @@ envcontrols_app:
   class: Greenhouse.EnvControls
   Fan_On_Temp: "70"
   Fan_Off_Temp: "65"
-  Humidity_On: "70"
-  Humidity_Off: "75"
+  Humidity_On: "75"
+  Humidity_Off: "70"

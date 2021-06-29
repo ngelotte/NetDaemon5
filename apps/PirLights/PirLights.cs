@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using NetDaemon.Common;
 using System.Collections.Generic;
 using System.Linq;
-using Netdaemon.Generated.Reactive;
+using NetDaemon.Generated.Reactive;
 
 namespace Greenhouse
 {

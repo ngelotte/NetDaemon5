@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 using NetDaemon.Common;
 using System.Linq;
 using System.Collections.Generic;
-using Netdaemon.Generated.Reactive;
+using NetDaemon.Generated.Reactive;
+using NetDaemon.Common.Reactive.Services;
 
 // Use unique namespaces for your apps if you going to share with others to avoid
 // conflicting names
@@ -35,17 +36,130 @@ namespace Greenhouse
             return true;
         }
 
+        public class EnsurePumpTurnsOff : IDisposable
+        {
+            private SwitchEntity SwitchEntity { get; set; }
+            public EnsurePumpTurnsOff(SwitchEntity switchEntity)
+            {
+                SwitchEntity = switchEntity;
+            }
+            public void TurnOn()
+            {
+                SwitchEntity.TurnOn();
+            }
+            public void TurnOff()
+            {
+                SwitchEntity.TurnOff();
+            }
+            public bool IsOn()
+            {
+                return SwitchEntity.IsOn();
+            }
+            public bool IsOFf()
+            {
+                return SwitchEntity.IsOff();
+            }
+            public bool IsUnknown()
+            {
+                return SwitchEntity.IsUnknown();
+            }
+            public void Dispose()
+            {
+                SwitchEntity.TurnOff();
+            }
+        }
+
+
+        internal async Task<bool> HoldCurrentZone()
+        {
+            var currentZone = _ghConfig.CurrentZone();
+            InputBooleanEntities ibe = new InputBooleanEntities(_app);
+            bool holdIsOn = ibe.TestingTankHold.State == "on";
+            string currentStep = "Starting";
+
+            if (!holdIsOn)
+            {
+                SendAlert($"Error holding the current zone. Last step to start is {currentStep}", "Testing Tank Hold is Off");
+                return false;
+            }
+            //set testing tank hold to on;
+
+
+            if (currentZone.TestingPump != null && _ghMain.TestingZoneMedium != null && _ghMain.TestingZoneHigh != null && _ghMain.TestingZoneLow != null)
+            {
+                if (_ghMain.TestingZoneHigh.IsOn() || _ghMain.TestingZoneMedium.IsOn() || _ghMain.TestingZoneLow.IsOn())
+                {
+                    SendAlert($"Error holding the current zone. Last step to start is {currentStep}", "The testing zone is not empty.");
+                }
+                try
+                {
+                    currentStep = "Initial Fill";
+                    using EnsurePumpTurnsOff testingPump = new EnsurePumpTurnsOff(currentZone.TestingPump);
+                    testingPump.TurnOn();
+                    var initialTankFilledUp = _ghMain.TestingZoneMedium.StateChanges.Merge(_ghMain.TestingZoneHigh.StateChanges).NDFirstOrTimeout(TimeSpan.FromSeconds(60));
+                    if (initialTankFilledUp == null)
+                    {
+                        SendAlert($"Error holding the current zone. Last step to start is {currentStep}", "Filling up the testing tank to medium timed-out.");
+                        return false;
+                    }
+                    else if (_ghMain.TestingZoneHigh.IsOn() && _ghMain.TestingZoneMedium.IsOff())
+                    {
+                        SendAlert($"Error holding the current zone. Last step to start is {currentStep}", "High is on but medium is off. The Testing tank is an invalid state.");
+                        return false;
+
+                    }
+                    else
+                    {
+                        testingPump.TurnOff();
+                        while (holdIsOn)
+                        {
+                            var refillTime = TimeSpan.FromSeconds(10);
+                            if (_ghMain.TestingZoneMedium.IsOn())
+                            {
+                                var waitFormediumToReset = _ghMain.TestingZoneMedium.StateChanges.Where(t => t.New.State == "off").NDFirstOrTimeout(TimeSpan.FromSeconds(60));
+                                if (waitFormediumToReset == null)
+                                {
+                                    SendAlert($"Error holding the current zone. Last step to start is {currentStep}", "TextingZoneMedium did not reset");
+                                    return false;
+                                }
+                            }
+                            else
+                            {
+                                refillTime = TimeSpan.FromSeconds(15);
+                            }
+                            testingPump.TurnOn();
+                            _ghMain.TestingZoneHigh.StateChanges.Where(t => t.New.State == "on").NDFirstOrTimeout(refillTime);
+                            testingPump.TurnOff();
+                            holdIsOn = ibe.TestingTankHold.State == "on";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SendAlert($"Error holding the current zone. Last step to start is {currentStep}", ex);
+                }
+
+            }
+            else
+            {
+                SendAlert($"Error holding the current zone.", "Some info on the current zone is null. So nothing could start.");
+            }
+            return true;
+        }
+
         public async Task<bool> AddNutrientsToCurrentZone()
         {
             GhZone zone = _ghConfig.CurrentZone();
             var nuteFormula = zone.NutrientFormula();
+            InputNumberEntities inputNumberEntities = new InputNumberEntities(_app);
+            int numberOfUnits = (int)(float)inputNumberEntities.Nutrientunitstoadd.State;
             _app.LogInformation($"Starting adding a dose to Zone {zone.SelectorName}");
-            _app.CallService("esphome", _ghMain.NutrientPump1Name, new { target = nuteFormula.pump1 });
-            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump1));
-            _app.CallService("esphome", _ghMain.NutrientPump2Name, new { target = nuteFormula.pump2 });
-            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump2));
-            _app.CallService("esphome", _ghMain.NutrientPump3Name, new { target = nuteFormula.pump3 });
-            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump3));
+            _app.CallService("esphome", _ghMain.NutrientPump1Name, new { target = nuteFormula.pump1 * numberOfUnits });
+            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump1 * numberOfUnits));
+            _app.CallService("esphome", _ghMain.NutrientPump2Name, new { target = nuteFormula.pump2 * numberOfUnits });
+            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump2 * numberOfUnits));
+            _app.CallService("esphome", _ghMain.NutrientPump3Name, new { target = nuteFormula.pump3 * numberOfUnits });
+            await _app.DelayFor(ConvertStepsToTime(nuteFormula.pump3 * numberOfUnits));
 
             return true;
         }
@@ -59,8 +173,23 @@ namespace Greenhouse
             return true;
         }
 
-        public async Task<bool> SendAlert(string title, string description)
+        public bool SendAlert(string title, string description)
         {
+            _app.CallService("persistent_notification", "create", new
+            {
+                title = title,
+                message = description
+            });
+            _app.CallService("notify", "mobile_app_moto_g_stylus", new
+            {
+                title = title,
+                message = description
+            });
+            return true;
+        }
+        public bool SendAlert(string title, Exception ex)
+        {
+            string description = ex?.Message ?? "Unknown Error";
             _app.CallService("persistent_notification", "create", new
             {
                 title = title,
@@ -308,7 +437,7 @@ namespace Greenhouse
             {
                 foreach (var sn in selectorNames)
                 {
-                    ise.ReservoirRes.CallService("select_option", sn, true);
+                    _app.CallService("input_select", "select_option", new { entity_id = "input_select.ReservoirRes", option = sn });
                     await Task.Delay(3000);
                     await RefillCurrentReservior();
                     ise.ReservoirRes.SelectOption("None");
@@ -316,7 +445,7 @@ namespace Greenhouse
             }
             else
             {
-                await SendAlert("Cannot start Reservoir refil.", $"ReservoirRes state is currently {ise.ReservoirRes.State}");
+                SendAlert("Cannot start Reservoir refill.", $"ReservoirRes state is currently {ise.ReservoirRes.State}");
             }
 
             return true;
@@ -328,7 +457,7 @@ namespace Greenhouse
             GhZone currentZone = _ghConfig.CurrentZone();
             if (currentZone.LowWater == null)
             {
-                await SendAlert($"Error Refilling Reservior {currentZone.SelectorName}", "Low water is null");
+                SendAlert($"Error Refilling Reservior {currentZone.SelectorName}", "Low water is null");
                 return false;
             }
             return await RefillReservior(currentZone);
@@ -356,12 +485,12 @@ namespace Greenhouse
                 {
                     if (zone.HighWater.IsOn() && zone.MediumWater.IsOff())
                     {
-                        await SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the highwater on but the medium water is off.");
+                        SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the highwater on but the medium water is off.");
                         throw new Exception("Reservoir in an invalid state");
                     }
                     if (zone.LowWater.IsOff() && (zone.MediumWater.IsOn() || zone.HighWater.IsOn()))
                     {
-                        await SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the lowWater off but the medium water isOn is {zone.HighWater.IsOn()} and high water isOn is  {zone.HighWater.IsOn()}.");
+                        SendAlert("Reservoir is in an invalid state for refill", $"Reservoir {zone.SelectorName} has the lowWater off but the medium water isOn is {zone.HighWater.IsOn()} and high water isOn is  {zone.HighWater.IsOn()}.");
                         throw new Exception("Reservoir in an invalid state");
                     }
 
@@ -457,7 +586,7 @@ namespace Greenhouse
                 }
 
                 _app.LogError($"Refill had an exception of {ex.Message}");
-                await SendAlert($"Error refilling Reserviour {zone.SelectorName}", $"Refill had an exception of { ex.Message}");
+                SendAlert($"Error refilling Reserviour {zone.SelectorName}", $"Refill had an exception of { ex.Message}");
                 tcs.SetResult(true);
             }
 
