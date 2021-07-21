@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NetDaemon.Common;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 // Use unique namespaces for your apps if you going to share with others to avoid
 // conflicting names
@@ -30,13 +31,9 @@ namespace Greenhouse
         }
         public override void Initialize()
         {
-            GhProcedures gh = new GhProcedures(this);
             LogInformation("Refill started and is ready for a callback");
-            //RunIn(TimeSpan.FromSeconds(20), async () =>
-            //{
-            //    await gh.RefillAllReserviors(ActiveReservoirs.ToList());
-            //});
         }
+
         [HomeAssistantServiceCall]
         public async Task RefillCurrentZone(dynamic data)
         {
@@ -46,12 +43,31 @@ namespace Greenhouse
 
         }
 
-        private bool ValidateEntities(GhZone zone)
+
+        [HomeAssistantServiceCall]
+        public async Task RefillWaterTank(dynamic data)
         {
-            List<string> entities = new List<string>();
-            return true;
+            GhProcedures gh = new GhProcedures(this);
+            await gh.RefillMainWaterTank();
+        }
+
+
+        [HomeAssistantServiceCall]
+        public async Task RefillSwpCooler(dynamic data)
+        {
+            GhProcedures gh = new GhProcedures(this);
+            await gh.RefillSwampCooler();
 
         }
+
+        [HomeAssistantServiceCall]
+        public async Task RunDumpRutineForCurrentZone(dynamic data)
+        {
+            GhProcedures gh = new GhProcedures(this);
+            await gh.RunOneTankEmptyRunForCurrentZone();
+
+        }
+
 
     }
 }

@@ -33,6 +33,10 @@ namespace Greenhouse
             {
                 _ghMain.FreshWaterPump.TurnOff();
             }
+            if (_ghMain.WaterTankRefill != null)
+            {
+                _ghMain.WaterTankRefill.TurnOff();
+            }
             return true;
         }
 
@@ -67,6 +71,125 @@ namespace Greenhouse
             {
                 SwitchEntity.TurnOff();
             }
+        }
+
+        public async Task<bool> RunOneTankEmptyRunForCurrentZone()
+        {
+            GhZone zone = _ghConfig.CurrentZone();
+            using EnsurePumpTurnsOff dumpPump = new EnsurePumpTurnsOff(_ghMain.DumpToWastePump);
+
+            if (_ghMain.FreshWaterPump == null || zone.MediumWater == null || zone.HighWater == null || zone.LowWater == null || _ghMain.TestingZoneLow == null || _ghMain.TestingZoneMedium == null || _ghMain.TestingZoneHigh == null || zone.TestingPump == null || zone.WateringPump == null)
+            {
+                SendAlert("Cannot run Tank Empty rutine because one of the needed items is null", "Should probably have a better message to figure out which one.");
+            }
+            else if (zone.MediumWater.IsOn() || zone.HighWater.IsOn())
+            {
+                using EnsurePumpTurnsOff testingPump = new EnsurePumpTurnsOff(zone.TestingPump);
+                testingPump.TurnOn();
+                var (Old, New) = await zone.LowWater.StateChanges.Merge(_ghMain.TestingZoneMedium.StateChanges).FirstOrTimeout(TimeSpan.FromSeconds(50)).FirstAsync();
+                if (New.State == "TimeOut")
+                {
+                    SendAlert("Timeout refilling trying to run an empty tank cycle", "Not sure what happened.");
+                }
+                else
+                {
+                    if (_ghMain.TestingZoneMedium.IsOn())
+                    {
+                        dumpPump.TurnOn();
+                        var refill = await zone.LowWater.StateChanges.Merge(_ghMain.TestingZoneHigh.StateChanges).FirstOrTimeout(TimeSpan.FromSeconds(80)).FirstAsync();
+                        dumpPump.TurnOff();
+                        if (refill.New.State == "TimeOut")
+                        {
+                            SendAlert("Empty Cycle Error - Did not get to low during ", "There was not enough water to get over medium on the testing tank so we can not run an empty cycle.");
+                        }
+                        else
+                        {
+                            if (zone.LowWater.IsOn() && _ghMain.TestingZoneHigh.IsOn())
+                            {
+                                testingPump.TurnOff();
+                                await _app.DelayFor(TimeSpan.FromSeconds(5));
+                                var refillAgain = await zone.LowWater.StateChanges.Merge(_ghMain.TestingZoneHigh.StateChanges).FirstOrTimeout(TimeSpan.FromSeconds(30)).FirstAsync();
+                            }
+
+                            var drain = await _ghMain.TestingZoneLow.StateChanges.FirstOrTimeout(TimeSpan.FromSeconds(75)).FirstAsync();
+                            if (zone.LowWater.IsOff())
+                            {
+                                //I want to make sure some water flows into the tanks so that it has enough to start a siphon; some of this goes down the wrong siphon unfortunately but it seems the safest.
+                                _ghMain.FreshWaterPump.TurnOn();
+                                await _app.DelayFor(TimeSpan.FromSeconds(10));
+                                _ghMain.FreshWaterPump.TurnOff();
+                            }
+
+                            if (zone.LowWater.IsOff())
+                            {
+                                SendAlert("Empty Cycle Error - Low Water is still off after filling with water", "There is a risk that we don't have enough water to start a siphon");
+                            }
+                            else
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        SendAlert("Empty Cycle Error - Got to low to fast", "There was not enough water to get over medium on the testing tank so we can not run an empty cycle.");
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Non of these items should be null. It is just that it won't crash if they are. But it wil send alerts.
+        /// </summary>
+        /// <param name="tankFullSensor">Sensor that shows if the tank that is trying to be filled is full</param>
+        /// <param name="pumpOrValve">Pump or valve that fills up the tank</param>
+        /// <param name="timeSpan">Max time to try and fill the tank. If this timespan is reached then the automation will end and send an alert./param>
+        /// <returns></returns>
+        private async Task<bool> FillUpTank(BinarySensorEntity? tankFullSensor, SwitchEntity? pumpOrValve, TimeSpan timeSpan)
+        {
+            if (pumpOrValve != null)
+            {
+                if (tankFullSensor == null)
+                {
+                    SendAlert($"Tank full sensor is null", "Tank could not be refilled");
+                }
+                else if (tankFullSensor.IsOff())
+                {
+                    using EnsurePumpTurnsOff pump = new EnsurePumpTurnsOff(pumpOrValve);
+                    pump.TurnOn();
+                    var (Old, New) = await tankFullSensor.StateChanges.Where(t => t.New.State == "on").FirstOrTimeout(timeSpan).FirstAsync();
+                    pump.TurnOff();
+                    if (New.State == "TimeOut")
+                    {
+                        SendAlert("Timeout refilling the Main Water tank", "Tank is probably not full but it took over 4 minutes to fill it up.");
+                    }
+                }
+            }
+            else
+            {
+                SendAlert($"pumpOrValve is null", "Tank could not be refilled");
+            }
+            return true;
+        }
+
+        public async Task<bool> RefillMainWaterTank()
+        {
+            return await FillUpTank(_ghMain.HighFreshWaterTank, _ghMain.WaterTankRefill, TimeSpan.FromMinutes(4));
+
+        }
+
+        public async Task<bool> RefillSwampCooler()
+        {
+            if (_ghMain.MediumFreshWaterTank != null && _ghMain.MediumFreshWaterTank.IsOn())
+            {
+                return await FillUpTank(_ghMain.HighSwampCoolerTank, _ghMain.SwampCoolerRefillPump, TimeSpan.FromMinutes(4));
+            }
+            else
+            {
+                SendAlert("Cannot fill up the swp cooler", "Fresh water tank needs to be atleast at Medium to initiat a refill so the swp cooler.");
+            }
+            return false;
         }
 
 

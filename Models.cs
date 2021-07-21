@@ -15,12 +15,21 @@ namespace Greenhouse
         public BinarySensorEntity? TestingZoneHigh { get; set; }
         public SwitchEntity MainFan { get; set; } = default!;
         public SwitchEntity? FreshWaterPump { get; set; }
+        public SwitchEntity? WaterTankRefill { get; set; }
+        public BinarySensorEntity? LowFreshWaterTank { get; set; }
+        public BinarySensorEntity? MediumFreshWaterTank { get; set; }
+        public BinarySensorEntity? HighFreshWaterTank { get; set; }
         public decimal SecondsFromLowToMediumOnTestingZone { get; set; }
         public string NutrientPump1Name { get; set; } = "";
         public string NutrientPump2Name { get; set; } = "";
         public string NutrientPump3Name { get; set; } = "";
         public SwitchEntity Dehumidfier { get; set; } = default!;
         public SwitchEntity SwampCooler { get; set; } = default!;
+        public BinarySensorEntity? LowSwampCoolerTank { get; set; }
+        public BinarySensorEntity? MediumSwampCoolerTank { get; set; }
+        public BinarySensorEntity? HighSwampCoolerTank { get; set; }
+        public SwitchEntity SwampCoolerRefillPump { get; set; } = default!;
+        public SwitchEntity DumpToWastePump { get; set; } = default!;
         //These need to just become ordered lists.
         public List<SensorEntity> InternalTempSensors { get; set; } = new List<SensorEntity>();
         public List<SensorEntity> ExternalTempSensors { get; set; } = new List<SensorEntity>();
@@ -196,9 +205,15 @@ namespace Greenhouse
             gHMain.ExternalHumiditySensors.Add(new(_app, new string[] { "sensor.ble_humidity_gh_external" }));
             gHMain.ExternalHumiditySensors.Add(new(_app, new string[] { "sensor.exterior_humidity" }));
             gHMain.MainFan = new(_app, new string[] { "switch.fan" });
-
+            gHMain.WaterTankRefill = new(_app, new string[] { "switch.power_strip_ne_outlet_3" });
+            gHMain.LowFreshWaterTank = new(_app, new string[] { "binary_sensor.fresh_water_empty" });
+            gHMain.MediumFreshWaterTank = new(_app, new string[] { "binary_sensor.fresh_water_medium" });
+            gHMain.HighFreshWaterTank = new(_app, new string[] { "binary_sensor.fresh_water_full" });
+            gHMain.LowSwampCoolerTank = new(_app, new string[] { "binary_sensor.swp_res_empty" });
+            gHMain.MediumSwampCoolerTank = new(_app, new string[] { "binary_sensor.swp_res_medium" });
+            gHMain.HighSwampCoolerTank = new(_app, new string[] { "binary_sensor.swp_res_full" });
+            gHMain.DumpToWastePump = new(_app, new string[] { "switch.tbp1" });
             return gHMain;
-
         }
 
         public GhZone CurrentZone()
